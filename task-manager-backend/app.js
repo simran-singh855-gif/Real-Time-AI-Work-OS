@@ -13,8 +13,8 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        // 🌐 UPDATE: Added Vercel URL to the Socket.io Guest List
-        origin: ["http://localhost:5173", "https://real-time-ai-work-os.vercel.app"], 
+        // 🌐 UPDATE: Replaced specific URLs with "*" (Allow ALL origins) to fix CORS forever!
+        origin: "*", 
         methods: ["GET", "POST", "PUT", "DELETE"]
     }
 });
@@ -37,9 +37,9 @@ const aiRoutes = require('./routes/aiRoutes');
 require('./utils/cronJobs'); 
 
 // 4. MIDDLEWARE (General)
-// 🌐 UPDATE: Added Vercel URL to the Express Guest List
+// 🌐 UPDATE: Replaced specific URLs with "*" to allow all origins
 app.use(cors({
-    origin: ["http://localhost:5173", "https://real-time-ai-work-os.vercel.app"]
+    origin: "*"
 })); 
 app.use(express.json()); 
 
