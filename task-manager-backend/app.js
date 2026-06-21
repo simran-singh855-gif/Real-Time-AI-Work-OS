@@ -9,6 +9,11 @@ const rateLimit = require('express-rate-limit'); // 🛡️ NEW: Import the secu
 
 // 2. INITIALIZE APP
 const app = express();
+
+// 🚀 CRITICAL FIX FOR RENDER DEPLOYMENT:
+// Tell Express to trust the proxy (Render's load balancer) so the rate limiter sees the real user IPs.
+app.set('trust proxy', 1); 
+
 const server = http.createServer(app); 
 
 const io = new Server(server, {
