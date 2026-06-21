@@ -13,7 +13,8 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: "http://localhost:5173", 
+        // 🌐 UPDATE: Added Vercel URL to the Socket.io Guest List
+        origin: ["http://localhost:5173", "https://real-time-ai-work-os.vercel.app"], 
         methods: ["GET", "POST", "PUT", "DELETE"]
     }
 });
@@ -36,7 +37,10 @@ const aiRoutes = require('./routes/aiRoutes');
 require('./utils/cronJobs'); 
 
 // 4. MIDDLEWARE (General)
-app.use(cors()); 
+// 🌐 UPDATE: Added Vercel URL to the Express Guest List
+app.use(cors({
+    origin: ["http://localhost:5173", "https://real-time-ai-work-os.vercel.app"]
+})); 
 app.use(express.json()); 
 
 // 🛡️ 5. SECURITY MIDDLEWARE (The Bouncer)
