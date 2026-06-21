@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { io } from 'socket.io-client'; // 🔌 NEW: Import WebSocket client
+import { io } from 'socket.io-client';
 
-// 🔌 NEW: Connect to the backend server (we put this outside the component so it doesn't reconnect every time you type)
-const socket = io('http://localhost:5000');
+// 🔌 NEW: Connect to the backend server
+const socket = io('https://real-time-ai-work-os.onrender.com');
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
@@ -33,7 +33,7 @@ function App() {
     e.preventDefault();
     const endpoint = isLoginMode ? '/login' : '/register';
     try {
-      const response = await fetch(`http://localhost:5000/api/auth${endpoint}`, {
+      const response = await fetch(`https://real-time-ai-work-os.onrender.com/api/auth${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
@@ -78,13 +78,10 @@ function App() {
 
   // 🔌 NEW: THE WEBSOCKET LISTENER
   useEffect(() => {
-    // Listen for the backend's megaphone shout
     socket.on('workspace_updated', (targetWorkspaceId) => {
       console.log("⚡ Real-time signal received! Updating UI...");
       
-      // If the shout was for everyone, OR for the specific room we are currently sitting in...
       if (targetWorkspaceId === 'refresh_all' || String(targetWorkspaceId) === String(activeWorkspaceId)) {
-        // Refresh the tasks and stats instantly!
         if (token && activeWorkspaceId) {
           fetchTasks();
           fetchStats();
@@ -92,15 +89,14 @@ function App() {
       }
     });
 
-    // Cleanup the listener when we change rooms
     return () => {
       socket.off('workspace_updated');
     };
-  }, [activeWorkspaceId, token]); // Re-bind if we switch rooms
+  }, [activeWorkspaceId, token]);
 
   const fetchWorkspaces = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/workspaces', {
+      const response = await fetch('https://real-time-ai-work-os.onrender.com/api/workspaces', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -117,7 +113,7 @@ function App() {
     e.preventDefault();
     if (!newWorkspaceName) return;
     try {
-      const response = await fetch('http://localhost:5000/api/workspaces', {
+      const response = await fetch('https://real-time-ai-work-os.onrender.com/api/workspaces', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ name: newWorkspaceName })
@@ -133,7 +129,7 @@ function App() {
   const fetchTasks = async () => {
     if (!activeWorkspaceId) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/task?workspaceId=${activeWorkspaceId}`, {
+      const response = await fetch(`https://real-time-ai-work-os.onrender.com/api/task?workspaceId=${activeWorkspaceId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -144,7 +140,7 @@ function App() {
   const fetchStats = async () => {
     if (!activeWorkspaceId) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/task/stats?workspaceId=${activeWorkspaceId}`, {
+      const response = await fetch(`https://real-time-ai-work-os.onrender.com/api/task/stats?workspaceId=${activeWorkspaceId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -156,7 +152,7 @@ function App() {
     e.preventDefault();
     if (!newTaskTitle || !activeWorkspaceId) return;
     try {
-      const response = await fetch('http://localhost:5000/api/task', {
+      const response = await fetch('https://real-time-ai-work-os.onrender.com/api/task', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ 
@@ -169,8 +165,6 @@ function App() {
       });
       if (response.ok) {
         setNewTaskTitle(''); setNewTaskDueDate(''); setNewTaskImportance(5); setNewTaskEffort(30);
-        // Note: We don't technically need to call fetchTasks() here anymore because the WebSocket will tell us to!
-        // But leaving it in won't hurt anything.
       }
     } catch (error) { console.error("Failed to create task"); }
   };
@@ -178,7 +172,7 @@ function App() {
   const handleToggleStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
     try {
-      await fetch(`http://localhost:5000/api/task/${id}`, {
+      await fetch(`https://real-time-ai-work-os.onrender.com/api/task/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ status: newStatus })
@@ -188,7 +182,7 @@ function App() {
 
   const handleDeleteTask = async (id) => {
     try {
-      await fetch(`http://localhost:5000/api/task/${id}`, {
+      await fetch(`https://real-time-ai-work-os.onrender.com/api/task/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -198,7 +192,7 @@ function App() {
   const handleAiBreakdown = async (taskId) => {
     setLoadingAiId(taskId);
     try {
-      const response = await fetch('http://localhost:5000/api/ai/breakdown', {
+      const response = await fetch('https://real-time-ai-work-os.onrender.com/api/ai/breakdown', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ taskId })
