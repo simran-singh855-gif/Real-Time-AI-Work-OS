@@ -197,7 +197,7 @@ UI Update
 
 ## 📸 Screenshots
 
-(Add screenshots here)
+
 
 ---
 
