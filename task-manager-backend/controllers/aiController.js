@@ -1,9 +1,3 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const db = require('../config/db');
-
-// Initialize the Google Gemini API
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
 const breakDownTask = async (req, res) => {
     const { taskId } = req.body;
     const userId = req.user.id;
@@ -11,7 +5,7 @@ const breakDownTask = async (req, res) => {
     if (!taskId) return res.status(400).json({ error: "Task ID is required." });
 
     try {
-        // 1. Fetch the parent task to see what we are breaking down
+        // 1. Fetch the parent task
         const [tasks] = await db.execute(
             'SELECT * FROM tasks WHERE id = ? AND workspace_id IN (SELECT workspace_id FROM workspace_members WHERE user_id = ?)',
             [taskId, userId]
@@ -20,36 +14,41 @@ const breakDownTask = async (req, res) => {
         if (tasks.length === 0) return res.status(404).json({ error: "Task not found or access denied." });
         const parentTask = tasks[0];
 
-        // 2. Instruct Gemini (Prompt Engineering)
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        // 2. UPGRADE: Configure Gemini for strict JSON and higher creativity
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-2.5-flash",
+            generationConfig: {
+                temperature: 0.7, // 0.0 is robotic, 1.0 is chaotic. 0.7 is perfect for tasks!
+                responseMimeType: "application/json" // GUARANTEES a crash-free JSON response
+            }
+        });
+
+        // 3. UPGRADE: Feed the AI the description too, not just the title!
         const prompt = `
             You are an expert engineering project manager. 
             The user needs to complete this task: "${parentTask.title}".
-            Break this task down into 3 actionable, bite-sized sub-tasks.
+            Context/Description: "${parentTask.description || 'No additional details provided.'}"
             
-            CRITICAL: You must respond ONLY with a valid JSON array of strings. 
-            Do not use markdown formatting, do not use the word "json" in your response.
-            Example: ["Research tools", "Write boilerplate code", "Test implementation"]
+            Break this task down into 3 actionable, highly-specific, technical sub-tasks.
+            Return a JSON array of 3 strings. Example: ["Initialize variables", "Write memory management logic", "Run unit tests"]
         `;
 
-        // 3. Call the API
+        // 4. Call the API
         const result = await model.generateContent(prompt);
-        let rawResponse = result.response.text().trim();
         
-        // Clean up markdown if the AI accidentally included it
-        if (rawResponse.startsWith('```')) {
-            rawResponse = rawResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-        }
+        // Because of responseMimeType, we can skip the markdown regex hacks completely!
+        const subTasks = JSON.parse(result.response.text());
 
-        const subTasks = JSON.parse(rawResponse);
-
-        // 4. Inject the new sub-tasks into the database
+        // 5. Inject the new sub-tasks into the database
         for (const subTitle of subTasks) {
             await db.execute(
                 'INSERT INTO tasks (user_id, workspace_id, title, description, importance, estimated_minutes, priority_score) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                [userId, parentTask.workspace_id, `↳ Sub-task: ${subTitle}`, 'AI Generated', parentTask.importance, 30, parentTask.priority_score]
+                [userId, parentTask.workspace_id, `↳ Sub-task: ${subTitle}`, 'AI Generated Breakdown', parentTask.importance, 30, parentTask.priority_score]
             );
         }
+
+        // 📣 THE MEGAPHONE: Tell the frontend to update instantly!
+        req.app.get('io').emit('workspace_updated', parentTask.workspace_id);
 
         res.json({ message: "AI Breakdown Complete!", subTasks });
 
@@ -58,5 +57,3 @@ const breakDownTask = async (req, res) => {
         res.status(500).json({ error: "Failed to process AI breakdown." });
     }
 };
-
-module.exports = { breakDownTask };
